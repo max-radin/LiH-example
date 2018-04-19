@@ -12,6 +12,8 @@ from openfermion.utils import count_qubits
 from projectq.ops import X, All, Measure
 from projectq.backends import CommandPrinter, CircuitDrawer
 
+from openfermion.hamiltonians._jellium import orbital_id, grid_indices
+
 class LiH_Project:
     """Class describing a VQE/UCCSD calculation on crystalline LiH.
     
@@ -33,8 +35,8 @@ class LiH_Project:
         self.opt_energy = None
         self.opt_amplitudes = None
 
-        species_a = 'Li'
-        species_b = 'H'
+        species_a = 'H'
+        species_b = 'Li'
 
         # Construct a fermion Hamiltonian
         grid = Grid(3, self.n, self.a)
@@ -58,11 +60,41 @@ class LiH_Project:
         # Freeze specified orbitals
         n_qubits = 2*n*n*n
         n_electrons = 4*3+4*1
+
+        # Determine the indices of occupied orbitals to be frozen
+        if self.n == 3:
+            to_fill = ((1, 1, 1),
+                       (0, 1, 1),
+                       (2, 1, 1),
+                       (1, 0, 1),
+                       (1, 2, 1),
+                       (1, 1, 0),
+                       (1, 1, 2),
+                       (0, 0, 1))
+        else:
+            to_fill = range(n_electrons-self.n_active_el)
+        to_fill_ids = []
+        for s in to_fill:
+            to_fill_ids.append(orbital_id(grid, s, 0))
+            to_fill_ids.append(orbital_id(grid, s, 1))
+        to_fill_ids = to_fill_ids[0:(n_electrons-self.n_active_el)]
+        #print(to_fill_ids)
+        #print('# of terms: {}'.format(len(self.fermion_hamiltonian.terms)))
         self.fermion_hamiltonian = freeze_orbitals(
                 self.fermion_hamiltonian,
-                range(n_electrons-self.n_active_el),
-                range(n_electrons-self.n_active_el+self.n_active_orb,
-                      n_qubits))
+                to_fill_ids)
+        #print('# of terms: {}'.format(len(self.fermion_hamiltonian.terms)))
+
+        # Freeze unoccupied orbitals
+        to_freeze_ids = range(self.n_active_orb,
+                              n_qubits-(n_electrons-self.n_active_el))
+        #print(to_freeze_ids)
+        self.fermion_hamiltonian = freeze_orbitals(
+                self.fermion_hamiltonian,
+                [],
+                to_freeze_ids)
+
+        print('# of terms: {}'.format(len(self.fermion_hamiltonian.terms)))
 
         # Construct qubit Hamiltonian
         self.qubit_hamiltonian = jordan_wigner(self.fermion_hamiltonian)
