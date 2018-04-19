@@ -7,7 +7,7 @@ from scipy.optimize import minimize
 from openfermion.config import *
 from openfermionprojectq import *
 
-from openfermion.utils import uccsd_singlet_paramsize
+from openfermion.utils import uccsd_singlet_paramsize, freeze_orbitals
 from openfermion.utils import count_qubits
 from projectq.ops import X, All, Measure
 from projectq.backends import CommandPrinter, CircuitDrawer
@@ -58,7 +58,8 @@ class LiH_Project:
         # Freeze specified orbitals
         n_qubits = 2*n*n*n
         n_electrons = 4*3+4*1
-        self.fermion_hamiltonian.freeze_orbitals(
+        self.fermion_hamiltonian = freeze_orbitals(
+                self.fermion_hamiltonian,
                 range(n_electrons-self.n_active_el),
                 range(n_electrons-self.n_active_el+self.n_active_orb,
                       n_qubits))
